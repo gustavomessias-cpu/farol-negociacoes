@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farol — Negociações</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #161922;
+    --bg3: #1e2230;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8eaf0;
+    --muted: #7a7f94;
+    --accent: #4f8ef7;
+    --green: #3ecf8e;
+    --amber: #f5a623;
+    --red: #f06565;
+    --green-bg: rgba(62,207,142,0.1);
+    --amber-bg: rgba(245,166,35,0.1);
+    --red-bg: rgba(240,101,101,0.1);
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-display); min-height: 100vh; }
+
+  /* TOPBAR */
+  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 18px 28px; border-bottom: 1px solid var(--border); background: var(--bg2); position: sticky; top: 0; z-index: 100; }
+  .logo { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+  .logo span { color: var(--accent); }
+  .topbar-meta { display: flex; align-items: center; gap: 14px; font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+  .csv-btn { background: var(--bg3); border: 1px solid var(--border2); color: var(--text); padding: 6px 14px; border-radius: 6px; font-size: 12px; font-family: var(--font-mono); cursor: pointer; transition: border-color 0.2s; }
+  .csv-btn:hover { border-color: var(--accent); color: var(--accent); }
+  #csv-input { display: none; }
+
+  /* NAV TABS */
+  .nav { display: flex; gap: 0; padding: 0 28px; border-bottom: 1px solid var(--border); background: var(--bg2); }
+  .nav-tab { padding: 12px 20px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; letter-spacing: 0.02em; }
+  .nav-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+  .nav-tab:hover:not(.active) { color: var(--text); }
+
+  /* LAYOUT */
+  .page { display: none; padding: 24px 28px; }
+  .page.active { display: block; }
+
+  /* KPI GRID */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; font-family: var(--font-mono); }
+  .kpi-value { font-size: 26px; font-weight: 700; letter-spacing: -1px; color: var(--text); }
+  .kpi-value.good { color: var(--green); }
+  .kpi-value.warn { color: var(--amber); }
+  .kpi-value.bad { color: var(--red); }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 4px; font-family: var(--font-mono); }
+
+  /* CHARTS ROW */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .chart-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .chart-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 16px; font-family: var(--font-mono); }
+
+  /* TABLE */
+  .table-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
+  .table-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  .table-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; font-family: var(--font-mono); }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { padding: 10px 14px; text-align: left; font-size: 11px; color: var(--muted); font-family: var(--font-mono); font-weight: 500; border-bottom: 1px solid var(--border); white-space: nowrap; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; font-family: var(--font-mono); font-size: 12px; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--bg3); }
+  .total-row td { background: var(--bg3); font-weight: 500; color: var(--text); border-top: 1px solid var(--border2); }
+
+  /* PILLS */
+  .pill { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; font-family: var(--font-mono); }
+  .pill-green { background: var(--green-bg); color: var(--green); }
+  .pill-amber { background: var(--amber-bg); color: var(--amber); }
+  .pill-red { background: var(--red-bg); color: var(--red); }
+
+  /* COB BAR */
+  .cob-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+  .cob-bar-bg { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+  .cob-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+  .cob-val { font-size: 12px; font-family: var(--font-mono); min-width: 38px; text-align: right; }
+
+  /* RANKING */
+  .rank-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .rank-row:last-child { border-bottom: none; }
+  .rank-num { font-size: 11px; color: var(--muted); font-family: var(--font-mono); min-width: 22px; }
+  .rank-name { flex: 1; font-size: 13px; font-weight: 600; }
+  .rank-regional { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+  .rank-bar-wrap { width: 120px; }
+
+  /* TWO COLS */
+  .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+
+  /* SECTION LABEL */
+  .section-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; font-family: var(--font-mono); }
+
+  /* MOTIVO BARS */
+  .motivo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .motivo-name { font-size: 12px; color: var(--text); min-width: 200px; font-family: var(--font-mono); }
+  .motivo-bar-bg { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .motivo-bar-fill { height: 100%; border-radius: 3px; background: var(--amber); }
+  .motivo-count { font-size: 12px; color: var(--muted); font-family: var(--font-mono); min-width: 24px; text-align: right; }
+
+  @media (max-width: 768px) {
+    .charts-row, .two-cols { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .topbar { padding: 14px 16px; }
+    .page { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">Farol <span>·</span> Negociações</div>
+  <div class="topbar-meta">
+    <span id="data-label">Maio 2026</span>
+    <button class="csv-btn" onclick="document.getElementById('csv-input').click()">↑ Atualizar CSV</button>
+    <input type="file" id="csv-input" accept=".csv">
+  </div>
+</div>
+
+<div class="nav">
+  <div class="nav-tab active" onclick="switchTab('overview', this)">Overview</div>
+  <div class="nav-tab" onclick="switchTab('regional1', this)">Regional 1</div>
+  <div class="nav-tab" onclick="switchTab('regional2', this)">Regional 2</div>
+  <div class="nav-tab" onclick="switchTab('ranking', this)">Ranking</div>
+  <div class="nav-tab" onclick="switchTab('produtos', this)">Produtos & Grupos</div>
+</div>
+
+<!-- ===== OVERVIEW ===== -->
+<div id="page-overview" class="page active">
+  <div class="kpi-grid" id="ov-kpis"></div>
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">Execução por regional</div>
+      <div style="position:relative;height:220px;"><canvas id="chart-regional" role="img" aria-label="Execução por regional"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Motivos de não execução</div>
+      <div style="position:relative;height:220px;"><canvas id="chart-motivos" role="img" aria-label="Motivos de não execução"></canvas></div>
+    </div>
+  </div>
+  <div class="two-cols">
+    <div class="chart-card">
+      <div class="chart-title">Cobertura por produto</div>
+      <div id="produtos-bars"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Top grupos (redes)</div>
+      <div id="grupos-bars"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== REGIONAL 1 ===== -->
+<div id="page-regional1" class="page">
+  <div class="kpi-grid" id="r1-kpis"></div>
+  <div class="chart-card" style="margin-bottom:20px;">
+    <div class="chart-title">Motivos de não execução — Regional 1</div>
+    <div id="r1-motivos"></div>
+  </div>
+  <div class="table-card">
+    <div class="table-header"><span class="table-title">Consultores — Regional 1</span></div>
+    <div class="table-wrap"><table id="r1-table"></table></div>
+  </div>
+</div>
+
+<!-- ===== REGIONAL 2 ===== -->
+<div id="page-regional2" class="page">
+  <div class="kpi-grid" id="r2-kpis"></div>
+  <div class="chart-card" style="margin-bottom:20px;">
+    <div class="chart-title">Motivos de não execução — Regional 2</div>
+    <div id="r2-motivos"></div>
+  </div>
+  <div class="table-card">
+    <div class="table-header"><span class="table-title">Consultores — Regional 2</span></div>
+    <div class="table-wrap"><table id="r2-table"></table></div>
+  </div>
+</div>
+
+<!-- ===== RANKING ===== -->
+<div id="page-ranking" class="page">
+  <div class="two-cols">
+    <div class="chart-card">
+      <div class="chart-title">Ranking — cobertura (%)</div>
+      <div id="rank-cob"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Ranking — positivações</div>
+      <div id="rank-pos"></div>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">Ranking — valor positivado (R$)</div>
+    <div style="position:relative;height:320px;"><canvas id="chart-rank-valor" role="img" aria-label="Ranking valor positivado"></canvas></div>
+  </div>
+</div>
+
+<!-- ===== PRODUTOS ===== -->
+<div id="page-produtos" class="page">
+  <div class="two-cols">
+    <div class="chart-card">
+      <div class="chart-title">Negociações por produto</div>
+      <div style="position:relative;height:300px;"><canvas id="chart-neg-prod" role="img" aria-label="Negociações por produto"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Valor positivado por produto (R$)</div>
+      <div style="position:relative;height:300px;"><canvas id="chart-val-prod" role="img" aria-label="Valor por produto"></canvas></div>
+    </div>
+  </div>
+  <div class="table-card">
+    <div class="table-header"><span class="table-title">Detalhamento por produto</span></div>
+    <div class="table-wrap"><table id="prod-table"></table></div>
+  </div>
+  <div class="table-card" style="margin-top:16px;">
+    <div class="table-header"><span class="table-title">Detalhamento por grupo (rede)</span></div>
+    <div class="table-wrap"><table id="grupo-table"></table></div>
+  </div>
+</div>
+
+<script>
+// ========== EMBEDDED DATA ==========
+let DATA = {
+  "overview": {"total":3603,"visitadas":2105,"positivadas":666,"nao_exec":1439,"cobertura":31.6,"valor":240863,"motivos":{"MARCA POSICIONADA EM PAREDE":15,"FALTA DE MATERIAL":12,"OUTRO":10,"O GERENTE NÃO AUTORIZOU":6,"NÃO POSSUI ESPAÇO FÍSICO":5,"ESPAÇO FÍSICO LIMITADO":1,"MATERIAL DESCARTADO PELA LOJA":1},"all_visitadas":2105},
+  "regionais": {
+    "REGIONAL 1": {"total":{"total":1858,"visitadas":1281,"positivadas":330,"nao_exec":951,"cobertura":25.8,"valor":112489,"motivos":{"MARCA POSICIONADA EM PAREDE":13,"FALTA DE MATERIAL":11,"OUTRO":7,"NÃO POSSUI ESPAÇO FÍSICO":3,"O GERENTE NÃO AUTORIZOU":2,"MATERIAL DESCARTADO PELA LOJA":1}},"consultores":{"ALINE FALCONE":{"total":108,"visitadas":108,"positivadas":2,"nao_exec":106,"cobertura":1.9,"valor":744,"motivos":{"OUTRO":1,"FALTA DE MATERIAL":1}},"ANA CLARA":{"total":150,"visitadas":150,"positivadas":79,"nao_exec":71,"cobertura":52.7,"valor":23724,"motivos":{"MARCA POSICIONADA EM PAREDE":3}},"ANA MARINHO":{"total":104,"visitadas":104,"positivadas":29,"nao_exec":75,"cobertura":27.9,"valor":7237,"motivos":{"MARCA POSICIONADA EM PAREDE":4,"NÃO POSSUI ESPAÇO FÍSICO":1,"MATERIAL DESCARTADO PELA LOJA":1}},"ANDRESSA SILVA":{"total":105,"visitadas":0,"positivadas":0,"nao_exec":0,"cobertura":0,"valor":0,"motivos":{}},"GABRIELA BORGES":{"total":107,"visitadas":107,"positivadas":2,"nao_exec":105,"cobertura":1.9,"valor":537,"motivos":{}},"LETÍCIA MARIA":{"total":94,"visitadas":0,"positivadas":0,"nao_exec":0,"cobertura":0,"valor":0,"motivos":{}},"MARCELLY FARIAS":{"total":139,"visitadas":139,"positivadas":21,"nao_exec":118,"cobertura":15.1,"valor":8966,"motivos":{"MARCA POSICIONADA EM PAREDE":2,"FALTA DE MATERIAL":1}},"MARIA EDUARDA LENCIONE":{"total":134,"visitadas":134,"positivadas":40,"nao_exec":94,"cobertura":29.9,"valor":16271,"motivos":{"OUTRO":3,"MARCA POSICIONADA EM PAREDE":3}},"NETINHA ROCHA":{"total":138,"visitadas":138,"positivadas":33,"nao_exec":105,"cobertura":23.9,"valor":12004,"motivos":{"O GERENTE NÃO AUTORIZOU":1,"FALTA DE MATERIAL":1,"OUTRO":1}},"REGILANIA OLIVEIRA":{"total":129,"visitadas":129,"positivadas":0,"nao_exec":129,"cobertura":0.0,"valor":0,"motivos":{"O GERENTE NÃO AUTORIZOU":1,"MARCA POSICIONADA EM PAREDE":1,"NÃO POSSUI ESPAÇO FÍSICO":1}},"SARA GALDINO":{"total":115,"visitadas":115,"positivadas":54,"nao_exec":61,"cobertura":47.0,"valor":18589,"motivos":{}},"SIMONE MARIA":{"total":77,"visitadas":77,"positivadas":36,"nao_exec":41,"cobertura":46.8,"valor":11705,"motivos":{"FALTA DE MATERIAL":8,"OUTRO":2,"NÃO POSSUI ESPAÇO FÍSICO":1}},"TALITA OLIVEIRA":{"total":80,"visitadas":80,"positivadas":34,"nao_exec":46,"cobertura":42.5,"valor":12712,"motivos":{}}}},
+    "REGIONAL 2": {"total":{"total":1122,"visitadas":824,"positivadas":336,"nao_exec":488,"cobertura":40.8,"valor":128374,"motivos":{"O GERENTE NÃO AUTORIZOU":4,"OUTRO":3,"NÃO POSSUI ESPAÇO FÍSICO":2,"MARCA POSICIONADA EM PAREDE":2,"ESPAÇO FÍSICO LIMITADO":1,"FALTA DE MATERIAL":1}},"consultores":{"ANDRESSA SANTOS":{"total":122,"visitadas":122,"positivadas":46,"nao_exec":76,"cobertura":37.7,"valor":15626,"motivos":{"OUTRO":2}},"ANGELITA REBESCHINI":{"total":143,"visitadas":143,"positivadas":60,"nao_exec":83,"cobertura":42.0,"valor":18882,"motivos":{"MARCA POSICIONADA EM PAREDE":1}},"FRANCIELE DURAES COSTA":{"total":141,"visitadas":141,"positivadas":58,"nao_exec":83,"cobertura":41.1,"valor":19934,"motivos":{"O GERENTE NÃO AUTORIZOU":2,"MARCA POSICIONADA EM PAREDE":1}},"LARISSA ROCHA":{"total":62,"visitadas":62,"positivadas":50,"nao_exec":12,"cobertura":80.6,"valor":18628,"motivos":{}},"LINDIANE OLIVEIRA":{"total":83,"visitadas":83,"positivadas":15,"nao_exec":68,"cobertura":18.1,"valor":7858,"motivos":{"FALTA DE MATERIAL":1}},"LUCIANNA SOARES":{"total":114,"visitadas":114,"positivadas":21,"nao_exec":93,"cobertura":18.4,"valor":7293,"motivos":{"NÃO POSSUI ESPAÇO FÍSICO":1,"OUTRO":1}},"LUIZ AUGUSTO":{"total":76,"visitadas":0,"positivadas":0,"nao_exec":0,"cobertura":0,"valor":0,"motivos":{}},"PATRICIA LIMA":{"total":78,"visitadas":78,"positivadas":41,"nao_exec":37,"cobertura":52.6,"valor":22842,"motivos":{"O GERENTE NÃO AUTORIZOU":2,"ESPAÇO FÍSICO LIMITADO":1}},"VIVIANE GOMES":{"total":81,"visitadas":81,"positivadas":45,"nao_exec":36,"cobertura":55.6,"valor":17311,"motivos":{"NÃO POSSUI ESPAÇO FÍSICO":1}}}}
+  },
+  "negociacoes": {"DISPLAY DE SEÇÃO":{"total":864,"pos":236,"valor":18644,"cob":27.3},"CUBO SAZIONAL":{"total":662,"pos":209,"valor":89452,"cob":31.6},"MÓVEL PAREDE":{"total":156,"pos":53,"valor":23240,"cob":34.0},"CAPA DE ANTENA":{"total":143,"pos":63,"valor":49577,"cob":44.1},"EXTENSOR DE GÔNDOLA":{"total":103,"pos":37,"valor":16946,"cob":35.9},"DISPLAY DE BALCÃO":{"total":89,"pos":34,"valor":22134,"cob":38.2},"PONTA DE GÔNDOLA":{"total":70,"pos":27,"valor":18170,"cob":38.6},"LEVE JUNTO":{"total":12,"pos":5,"valor":2400,"cob":41.7},"CLIPSTRIP":{"total":6,"pos":2,"valor":300,"cob":33.3}},
+  "grupos": {"RD":{"total":1872,"pos":570,"valor":180990,"cob":30.4},"DPSP":{"total":139,"pos":54,"valor":28536,"cob":38.8},"PAGUE MENOS":{"total":45,"pos":13,"valor":7185,"cob":28.9},"Venancio":{"total":18,"pos":10,"valor":13400,"cob":55.6},"Araujo":{"total":13,"pos":12,"valor":8052,"cob":92.3},"PANVEL":{"total":12,"pos":5,"valor":2400,"cob":41.7},"D1000":{"total":6,"pos":2,"valor":300,"cob":33.3}}
+};
+
+// ========== UTILS ==========
+const fmtBRL = v => 'R$ ' + Number(v).toLocaleString('pt-BR');
+const fmtPct = v => v.toFixed(1) + '%';
+
+function cobColor(v) {
+  if (v >= 50) return 'good';
+  if (v >= 25) return 'warn';
+  return 'bad';
+}
+function cobHex(v) {
+  if (v >= 50) return '#3ecf8e';
+  if (v >= 25) return '#f5a623';
+  return '#f06565';
+}
+function cobPill(v) {
+  const cls = v >= 50 ? 'pill-green' : v >= 25 ? 'pill-amber' : 'pill-red';
+  return `<span class="pill ${cls}">${fmtPct(v)}</span>`;
+}
+
+function cobBarHTML(v, max=100) {
+  const pct = Math.min(v/max*100, 100);
+  return `<div class="cob-bar-wrap">
+    <div class="cob-bar-bg"><div class="cob-bar-fill" style="width:${pct}%;background:${cobHex(v)}"></div></div>
+    <span class="cob-val" style="color:${cobHex(v)}">${fmtPct(v)}</span>
+  </div>`;
+}
+
+// ========== TABS ==========
+function switchTab(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  el.classList.add('active');
+}
+
+// ========== RENDER OVERVIEW ==========
+function renderOverview() {
+  const ov = DATA.overview;
+  const r1 = DATA.regionais['REGIONAL 1'].total;
+  const r2 = DATA.regionais['REGIONAL 2'].total;
+
+  document.getElementById('ov-kpis').innerHTML = [
+    { label: 'Neg. totais', value: ov.total.toLocaleString('pt-BR'), cls: '' },
+    { label: 'Lojas visitadas', value: ov.visitadas.toLocaleString('pt-BR'), cls: '' },
+    { label: 'Positivadas', value: ov.positivadas.toLocaleString('pt-BR'), cls: 'good' },
+    { label: 'Cobertura visitadas', value: fmtPct(ov.cobertura), cls: cobColor(ov.cobertura) },
+    { label: 'Não executadas', value: ov.nao_exec.toLocaleString('pt-BR'), cls: 'bad' },
+    { label: 'Valor positivado', value: fmtBRL(ov.valor), cls: 'good', sub: 'negociações visitadas' },
+  ].map(k => `<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls}">${k.value}</div>${k.sub ? `<div class="kpi-sub">${k.sub}</div>` : ''}</div>`).join('');
+
+  // Chart: execução por regional
+  new Chart(document.getElementById('chart-regional'), {
+    type: 'bar',
+    data: {
+      labels: ['Regional 1', 'Regional 2'],
+      datasets: [
+        { label: 'Positivadas', data: [r1.positivadas, r2.positivadas], backgroundColor: '#3ecf8e', borderRadius: 4 },
+        { label: 'Não executadas', data: [r1.nao_exec, r2.nao_exec], backgroundColor: '#f06565', borderRadius: 4 },
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#7a7f94', font: { size: 11 } } } }, scales: { x: { stacked: true, ticks: { color: '#7a7f94' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { stacked: true, ticks: { color: '#7a7f94' }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
+  });
+
+  // Chart: motivos
+  const motivos = DATA.overview.motivos;
+  const mKeys = Object.keys(motivos);
+  const mVals = mKeys.map(k => motivos[k]);
+  const mColors = ['#f5a623','#f06565','#4f8ef7','#3ecf8e','#a78bfa','#fb7185','#94a3b8'];
+  new Chart(document.getElementById('chart-motivos'), {
+    type: 'doughnut',
+    data: { labels: mKeys, datasets: [{ data: mVals, backgroundColor: mColors.slice(0, mKeys.length), borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#7a7f94', font: { size: 10 }, boxWidth: 12, padding: 8 } } } }
+  });
+
+  // Produtos bars
+  const prods = DATA.negociacoes;
+  document.getElementById('produtos-bars').innerHTML = Object.entries(prods).map(([k,v]) =>
+    `<div class="motivo-row"><span class="motivo-name" style="min-width:170px;font-size:11px;">${k}</span><div class="motivo-bar-bg"><div class="motivo-bar-fill" style="width:${v.cob}%;background:${cobHex(v.cob)}"></div></div><span class="motivo-count" style="color:${cobHex(v.cob)}">${fmtPct(v.cob)}</span></div>`
+  ).join('');
+
+  // Grupos bars
+  const grps = DATA.grupos;
+  document.getElementById('grupos-bars').innerHTML = Object.entries(grps).map(([k,v]) =>
+    `<div class="motivo-row"><span class="motivo-name" style="min-width:120px;font-size:11px;">${k}</span><div class="motivo-bar-bg"><div class="motivo-bar-fill" style="width:${Math.min(v.cob,100)}%;background:${cobHex(v.cob)}"></div></div><span class="motivo-count" style="color:${cobHex(v.cob)}">${fmtPct(v.cob)}</span></div>`
+  ).join('');
+}
+
+// ========== RENDER REGIONAL ==========
+function renderRegional(reg, kpiId, tblId, motivosId) {
+  const d = DATA.regionais[reg].total;
+  document.getElementById(kpiId).innerHTML = [
+    { label: 'Neg. totais', value: d.total.toLocaleString('pt-BR') },
+    { label: 'Visitadas', value: d.visitadas.toLocaleString('pt-BR') },
+    { label: 'Positivadas', value: d.positivadas.toLocaleString('pt-BR'), cls: 'good' },
+    { label: 'Cobertura', value: fmtPct(d.cobertura), cls: cobColor(d.cobertura) },
+    { label: 'Não executadas', value: d.nao_exec.toLocaleString('pt-BR'), cls: 'bad' },
+    { label: 'Valor positivado', value: fmtBRL(d.valor), cls: 'good' },
+  ].map(k => `<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls||''}">${k.value}</div></div>`).join('');
+
+  // Motivos
+  const mot = d.motivos;
+  const maxMot = Math.max(...Object.values(mot), 1);
+  document.getElementById(motivosId).innerHTML = Object.entries(mot).length
+    ? Object.entries(mot).map(([k,v]) =>
+        `<div class="motivo-row"><span class="motivo-name">${k}</span><div class="motivo-bar-bg"><div class="motivo-bar-fill" style="width:${v/maxMot*100}%"></div></div><span class="motivo-count">${v}</span></div>`
+      ).join('')
+    : '<span style="color:var(--muted);font-size:12px;font-family:var(--font-mono)">Sem motivos registrados</span>';
+
+  // Table
+  const cons = DATA.regionais[reg].consultores;
+  const tbl = document.getElementById(tblId);
+  tbl.innerHTML = `<thead><tr>
+    <th>Consultor</th><th>Neg. totais</th><th>Visitadas</th><th>Positivadas</th><th>Não exec.</th><th>Cobertura</th><th>Valor positivado</th>
+  </tr></thead><tbody></tbody>`;
+  const tbody = tbl.querySelector('tbody');
+  let totals = { total:0, visitadas:0, positivadas:0, nao_exec:0, valor:0 };
+  Object.entries(cons).forEach(([nome, s]) => {
+    totals.total += s.total; totals.visitadas += s.visitadas;
+    totals.positivadas += s.positivadas; totals.nao_exec += s.nao_exec; totals.valor += s.valor;
+    tbody.innerHTML += `<tr>
+      <td style="font-weight:500;color:var(--text)">${nome}</td>
+      <td>${s.total}</td><td>${s.visitadas}</td>
+      <td style="color:var(--green)">${s.positivadas}</td>
+      <td style="color:var(--red)">${s.nao_exec}</td>
+      <td>${cobBarHTML(s.cobertura)}</td>
+      <td style="color:var(--green)">${fmtBRL(s.valor)}</td>
+    </tr>`;
+  });
+  const totCob = totals.visitadas > 0 ? totals.positivadas/totals.visitadas*100 : 0;
+  tbody.innerHTML += `<tr class="total-row">
+    <td>TOTAL</td><td>${totals.total}</td><td>${totals.visitadas}</td>
+    <td style="color:var(--green)">${totals.positivadas}</td>
+    <td style="color:var(--red)">${totals.nao_exec}</td>
+    <td>${cobBarHTML(totCob)}</td>
+    <td style="color:var(--green)">${fmtBRL(totals.valor)}</td>
+  </tr>`;
+}
+
+// ========== RENDER RANKING ==========
+function renderRanking() {
+  // Consolidate all consultores across regionals
+  const all = [];
+  Object.entries(DATA.regionais).forEach(([reg, rd]) => {
+    Object.entries(rd.consultores).forEach(([nome, s]) => {
+      if (s.visitadas > 0) all.push({ nome, regional: reg, ...s });
+    });
+  });
+
+  const byCob = [...all].sort((a,b) => b.cobertura - a.cobertura);
+  const byPos = [...all].sort((a,b) => b.positivadas - a.positivadas);
+  const byVal = [...all].sort((a,b) => b.valor - a.valor);
+
+  const maxCob = byCob[0]?.cobertura || 100;
+  const maxPos = byPos[0]?.positivadas || 1;
+
+  document.getElementById('rank-cob').innerHTML = byCob.map((c,i) => `
+    <div class="rank-row">
+      <span class="rank-num">#${i+1}</span>
+      <div style="flex:1"><div class="rank-name">${c.nome}</div><div class="rank-regional">${c.regional}</div></div>
+      <div class="rank-bar-wrap">${cobBarHTML(c.cobertura, maxCob)}</div>
+    </div>`).join('');
+
+  document.getElementById('rank-pos').innerHTML = byPos.map((c,i) => `
+    <div class="rank-row">
+      <span class="rank-num">#${i+1}</span>
+      <div style="flex:1"><div class="rank-name">${c.nome}</div><div class="rank-regional">${c.regional}</div></div>
+      <div style="display:flex;align-items:center;gap:8px;min-width:120px;">
+        <div class="cob-bar-bg" style="flex:1"><div class="cob-bar-fill" style="width:${c.positivadas/maxPos*100}%;background:#4f8ef7"></div></div>
+        <span class="cob-val" style="color:#4f8ef7">${c.positivadas}</span>
+      </div>
+    </div>`).join('');
+
+  // Valor chart
+  new Chart(document.getElementById('chart-rank-valor'), {
+    type: 'bar',
+    data: {
+      labels: byVal.map(c => c.nome.split(' ')[0]),
+      datasets: [{ label: 'Valor (R$)', data: byVal.map(c => c.valor), backgroundColor: '#4f8ef7', borderRadius: 4 }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#7a7f94', callback: v => 'R$' + (v/1000).toFixed(0) + 'k' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#e8eaf0', font: { size: 11 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ========== RENDER PRODUTOS ==========
+function renderProdutos() {
+  const prods = DATA.negociacoes;
+  const grps = DATA.grupos;
+  const pKeys = Object.keys(prods);
+  const gKeys = Object.keys(grps);
+
+  new Chart(document.getElementById('chart-neg-prod'), {
+    type: 'bar',
+    data: {
+      labels: pKeys,
+      datasets: [
+        { label: 'Positivadas', data: pKeys.map(k => prods[k].pos), backgroundColor: '#3ecf8e', borderRadius: 3 },
+        { label: 'Não executadas', data: pKeys.map(k => prods[k].total - prods[k].pos), backgroundColor: 'rgba(240,101,101,0.5)', borderRadius: 3 },
+      ]
+    },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#7a7f94', font: { size: 11 } } } }, scales: { x: { stacked: true, ticks: { color: '#7a7f94' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { stacked: true, ticks: { color: '#e8eaf0', font: { size: 10 } }, grid: { display: false } } } }
+  });
+
+  new Chart(document.getElementById('chart-val-prod'), {
+    type: 'bar',
+    data: {
+      labels: pKeys,
+      datasets: [{ label: 'Valor (R$)', data: pKeys.map(k => prods[k].valor), backgroundColor: '#a78bfa', borderRadius: 3 }]
+    },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#7a7f94', callback: v => 'R$' + (v/1000).toFixed(0) + 'k' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: '#e8eaf0', font: { size: 10 } }, grid: { display: false } } } }
+  });
+
+  // Produtos table
+  const pt = document.getElementById('prod-table');
+  pt.innerHTML = `<thead><tr><th>Produto</th><th>Total neg.</th><th>Positivadas</th><th>Cobertura</th><th>Valor positivado</th></tr></thead><tbody>` +
+    pKeys.map(k => `<tr><td style="font-weight:500">${k}</td><td>${prods[k].total}</td><td style="color:var(--green)">${prods[k].pos}</td><td>${cobPill(prods[k].cob)}</td><td style="color:var(--green)">${fmtBRL(prods[k].valor)}</td></tr>`).join('') +
+    '</tbody>';
+
+  const gt = document.getElementById('grupo-table');
+  gt.innerHTML = `<thead><tr><th>Grupo (rede)</th><th>Total neg.</th><th>Positivadas</th><th>Cobertura</th><th>Valor positivado</th></tr></thead><tbody>` +
+    gKeys.map(k => `<tr><td style="font-weight:500">${k}</td><td>${grps[k].total}</td><td style="color:var(--green)">${grps[k].pos}</td><td>${cobPill(grps[k].cob)}</td><td style="color:var(--green)">${fmtBRL(grps[k].valor)}</td></tr>`).join('') +
+    '</tbody>';
+}
+
+// ========== CSV RELOAD ==========
+document.getElementById('csv-input').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const text = ev.target.result;
+    try {
+      parseAndUpdateData(text);
+      rebuildDash();
+      document.getElementById('data-label').textContent = file.name.replace('.csv','').replace(/_/g,' ');
+    } catch(err) {
+      alert('Erro ao processar CSV: ' + err.message);
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+});
+
+function parseAndUpdateData(text) {
+  const lines = text.split('\n').map(l => l.split(','));
+  const headers = lines[1];
+  const idx = {};
+  headers.forEach((h,i) => { if(!idx[h.trim()]) idx[h.trim()] = i; });
+  const VISITA=idx['VISITA'], CONSULTOR=idx['CONSULTOR'], NEGOCIACAO=5, GRUPO=idx['GRUPO'],
+        REGIONAL=idx['REGIONAL'], EXECUTADO=idx['EXECUTADO'], MOTIVO=idx['MOTIVO'];
+  // Find VALOR (last column)
+  const VALOR = headers.length - 1;
+
+  const rows = lines.slice(2).filter(r => r.length > 5);
+  const get = (r, i) => (r[i]||'').trim();
+
+  function buildStats(recs) {
+    const vis = recs.filter(r => get(r,VISITA)==='SIM');
+    const pos = vis.filter(r => get(r,EXECUTADO)==='SIM');
+    const motivos = {};
+    vis.forEach(r => { if(get(r,EXECUTADO)!=='SIM' && get(r,MOTIVO)) { const m=get(r,MOTIVO); motivos[m]=(motivos[m]||0)+1; } });
+    return { total:recs.length, visitadas:vis.length, positivadas:pos.length, nao_exec:vis.length-pos.length,
+      cobertura: vis.length ? Math.round(pos.length/vis.length*1000)/10 : 0,
+      valor: Math.round(pos.reduce((s,r)=>s+(parseFloat(get(r,VALOR))||0),0)),
+      motivos: Object.fromEntries(Object.entries(motivos).sort((a,b)=>b[1]-a[1])) };
+  }
+
+  const regionais = ['REGIONAL 1','REGIONAL 2'];
+  const newRegionais = {};
+  regionais.forEach(reg => {
+    const recs = rows.filter(r => get(r,REGIONAL)===reg);
+    const consultores = [...new Set(recs.map(r=>get(r,CONSULTOR)).filter(c=>c&&c!=='SEM VISITA'&&c!=='VAGO'))].sort();
+    newRegionais[reg] = { total: buildStats(recs), consultores: Object.fromEntries(consultores.map(c=>[c,buildStats(recs.filter(r=>get(r,CONSULTOR)===c))])) };
+  });
+
+  const allVis = rows.filter(r => get(r,VISITA)==='SIM');
+  const negStats = {};
+  allVis.forEach(r => {
+    const n = get(r,NEGOCIACAO); const v = parseFloat(get(r,VALOR))||0; const pos = get(r,EXECUTADO)==='SIM';
+    if(!negStats[n]) negStats[n]={total:0,pos:0,valor:0};
+    negStats[n].total++; if(pos){negStats[n].pos++;negStats[n].valor+=v;}
+  });
+  const grpStats = {};
+  allVis.forEach(r => {
+    const g = get(r,GRUPO); const v = parseFloat(get(r,VALOR))||0; const pos = get(r,EXECUTADO)==='SIM';
+    if(!grpStats[g]) grpStats[g]={total:0,pos:0,valor:0};
+    grpStats[g].total++; if(pos){grpStats[g].pos++;grpStats[g].valor+=v;}
+  });
+
+  DATA.regionais = newRegionais;
+  DATA.overview = buildStats(rows);
+  DATA.negociacoes = Object.fromEntries(Object.entries(negStats).sort((a,b)=>b[1].total-a[1].total).map(([k,v])=>[k,{...v,valor:Math.round(v.valor),cob:v.total?Math.round(v.pos/v.total*1000)/10:0}]));
+  DATA.grupos = Object.fromEntries(Object.entries(grpStats).sort((a,b)=>b[1].total-a[1].total).slice(0,10).map(([k,v])=>[k,{...v,valor:Math.round(v.valor),cob:v.total?Math.round(v.pos/v.total*1000)/10:0}]));
+}
+
+function rebuildDash() {
+  // Destroy existing charts
+  Chart.instances && Object.values(Chart.instances).forEach(c => c.destroy && c.destroy());
+  document.getElementById('ov-kpis').innerHTML = '';
+  document.getElementById('r1-kpis').innerHTML = '';
+  document.getElementById('r2-kpis').innerHTML = '';
+  ['r1-motivos','r2-motivos','rank-cob','rank-pos','rank-pos','produtos-bars','grupos-bars'].forEach(id => { const el=document.getElementById(id); if(el) el.innerHTML=''; });
+  renderAll();
+}
+
+function renderAll() {
+  renderOverview();
+  renderRegional('REGIONAL 1','r1-kpis','r1-table','r1-motivos');
+  renderRegional('REGIONAL 2','r2-kpis','r2-table','r2-motivos');
+  renderRanking();
+  renderProdutos();
+}
+
+renderAll();
+</script>
+</body>
+</html>
