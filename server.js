@@ -1,9 +1,9 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-
+ 
 const PORT = process.env.PORT || 3000;
-
+ 
 const server = http.createServer((req, res) => {
   const filePath = path.join(__dirname, 'index.html');
   fs.readFile(filePath, (err, data) => {
@@ -16,7 +16,7 @@ const server = http.createServer((req, res) => {
     res.end(data);
   });
 });
-
-server.listen(PORT, () => {
+ 
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Farol rodando na porta ${PORT}`);
 });
