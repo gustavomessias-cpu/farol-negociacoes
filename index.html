@@ -716,6 +716,15 @@ function exportarCSV() {
   URL.revokeObjectURL(url);
 }
 
+// ========== EVOL VIEW TOGGLE ==========
+function setEvolView(view) {
+  window._evolView = view;
+  document.getElementById('btn-evol-qtd').classList.toggle('active-view', view==='qtd');
+  document.getElementById('btn-evol-val').classList.toggle('active-view', view==='val');
+  if (charts['evol']) { try { charts['evol'].destroy(); } catch(e){} }
+  buildEvolChart(view);
+}
+
 // ========== INIT ==========
 renderMesChips();
 renderAll();
