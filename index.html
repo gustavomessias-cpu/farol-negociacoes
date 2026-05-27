@@ -109,8 +109,7 @@ tbody tr.clickable:hover td{background:rgba(79,142,247,0.08)}
     <div class="topbar-period" id="period-label">Janeiro — Maio 2026</div>
   </div>
   <div class="topbar-right">
-    <button class="csv-btn" onclick="document.getElementById('csv-input').click()">↑ Atualizar CSV</button>
-    <input type="file" id="csv-input" accept=".csv" style="display:none">
+    <button class="csv-btn" onclick="exportarCSV()">↓ Exportar CSV</button>
   </div>
 </div>
 
@@ -682,55 +681,41 @@ function switchTab(id, el) {
   el.classList.add('active');
 }
 
-// ========== CSV RELOAD ==========
-document.getElementById('csv-input').addEventListener('change', function(e) {
-  const file = e.target.files[0]; if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    try {
-      loadCSV(ev.target.result);
-      document.getElementById('data-label').textContent = file.name.replace('.csv','').replace(/_/g,' ');
-    } catch(err) { alert('Erro ao processar CSV: '+err.message); }
-  };
-  reader.readAsText(file, 'utf-8');
-});
 
-function loadCSV(text) {
-  const lines = text.split('\n').map(l=>l.split(','));
-  const headers = lines[1];
-  const fi = {}; headers.forEach((h,i)=>{ if(!fi[h.trim()]) fi[h.trim()]=i; });
-  const VI=fi['VISITA'],CO=fi['CONSULTOR'],NE=5,GR=fi['GRUPO'],RE=fi['REGIONAL'],EXi=fi['EXECUTADO'],MO=fi['MOTIVO'];
-  const VAi = headers.length-1;
-  const g = (r,i) => (r[i]||'').trim();
+// ========== EXPORTAR CSV ==========
+function exportarCSV() {
+  const data = filtered();
+  const headers = ['VISITA','CONSULTOR','NEGOCIAÇÃO','GRUPO','REGIONAL','EXECUTADO','MOTIVO','VALOR','MÊS'];
+  const rows = data.map(r => [
+    r[C]===1 ? 'SIM' : 'NÃO',
+    META.c[r[CI]] || '',
+    META.n[r[NI]] || '',
+    META.g[r[GI]] || '',
+    META.r[r[RI]] || '',
+    r[EX]===1 ? 'SIM' : r[EX]===0 ? 'NÃO' : 'SEM RESPOSTA',
+    META.m[r[MI]] || '',
+    r[VA],
+    META.mes[r[MEI]] || ''
+  ]);
 
-  // Rebuild lookup lists
-  const newC=[],newN=[],newG=[],newR=[],newM=[];
-  const idx = (lst,v) => { if(!lst.includes(v)) lst.push(v); return lst.indexOf(v); };
+  const csv = [headers, ...rows]
+    .map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';'))
+    .join('\n');
 
-  RAW.length = 0;
-  lines.slice(2).filter(r=>r.length>5).forEach(r=>{
-    const reg=g(r,RE); if(['-',''].includes(reg)) return;
-    const vis=g(r,VI)==='SIM'?1:0;
-    const exe=g(r,EXi)==='SIM'?1:(g(r,EXi)==='NÃO'?0:2);
-    const val=parseFloat(g(r,VAi))||0;
-    RAW.push([vis,idx(newC,g(r,CO)),idx(newN,g(r,NE)),idx(newG,g(r,GR)),idx(newR,reg),exe,idx(newM,g(r,MO)),Math.round(val)]);
-  });
-  META.c=newC; META.n=newN; META.g=newG; META.r=newR; META.m=newM;
-  clearFilters();
+  // Build filename with active filters
+  const parts = ['farol'];
+  if (F.mes.size > 0) parts.push([...F.mes].sort().map(m=>MES_NAMES[m]||m).join('-'));
+  if (F.regional) parts.push(F.regional.replace(' ',''));
+  if (F.consultor) parts.push(F.consultor.split(' ')[0]);
+  const filename = parts.join('_') + '.csv';
+
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
-
-// ========== EVOL VIEW TOGGLE ==========
-function setEvolView(view) {
-  window._evolView = view;
-  document.getElementById('btn-evol-qtd').classList.toggle('active-view', view==='qtd');
-  document.getElementById('btn-evol-val').classList.toggle('active-view', view==='val');
-  if (charts['evol']) { try { charts['evol'].destroy(); } catch(e){} }
-  buildEvolChart(view);
-}
-
-// ========== PROD VIEW TOGGLE ==========
-
-let _prodView = 'unidades';
 
 // ========== INIT ==========
 renderMesChips();
