@@ -219,6 +219,7 @@ function filtered() {
     if (F.grupo !== null && META.g[r[GI]] !== F.grupo) return false;
     if (F.produto !== null && META.n[r[NI]] !== F.produto) return false;
     if (F.consultor !== null && META.c[r[CI]] !== F.consultor) return false;
+    if (META.r[r[RI]] === "TARSILA") return false;
     if (F.mes.size > 0 && (r[MEI]===undefined || !F.mes.has(META.mes[r[MEI]]))) return false;
     if (F.motivo !== null && META.m[r[MI]] !== F.motivo) return false;
     if (r[VA] < F.valorMin || r[VA] > F.valorMax) return false;
@@ -306,7 +307,7 @@ function renderOverview(data) {
   buildEvolChart(window._evolView || 'qtd');
 
   // Regional buttons
-  const regLabels = META.r.filter(v=>v!=='SEM VISITA' && v!=='-').sort();
+  const regLabels = META.r.filter(v=>v!=='SEM VISITA' && v!=='-' && v!=='TARSILA').sort();
   const regBtns = document.getElementById('reg-btns');
   if (regBtns) {
     regBtns.innerHTML = '';
